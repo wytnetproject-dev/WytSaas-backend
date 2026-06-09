@@ -53,14 +53,15 @@ async def retrieve_user(user_id: UUID, db: AsyncSession = Depends(get_db)):
     )
 
 # List all users with optional pagination
-@router.get("/", response_model=APIResponse[List[UserResponse]])
+@router.get("/", response_model=APIResponse[UserResponse])
 async def list_all_users(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db),user: UserJWT = Depends(get_user_token)):
     users = await list_users(db, skip=skip, limit=limit)
-    return APIResponse[List[UserResponse]](
+    return APIResponse[UserResponse](
         items=users,
         detail="Users retrieved successfully",
         itemCount=len(users)
     )
+
 
 # Update an existing user's information
 @router.patch("/{user_id}", response_model=APIResponse[UserResponse])

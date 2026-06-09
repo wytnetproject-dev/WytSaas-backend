@@ -208,9 +208,20 @@ async def login(
    
 
 
-    return {"item":{"access_token": access_token, "token_type": "bearer",
-                    
-                    }}
+    return {
+        "item": {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": str(user.id),
+                "username": user.username,
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role
+            }
+        }
+    }
+
 
 
 

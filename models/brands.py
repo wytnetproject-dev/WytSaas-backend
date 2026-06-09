@@ -1,5 +1,7 @@
-from sqlalchemy import Column, String, Text, Boolean, DateTime, BigInteger, Uuid, Integer, ForeignKey
+from sqlalchemy import Column, String, Text, Boolean, DateTime, BigInteger, Uuid, Integer, ForeignKey, Numeric
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import ARRAY
 from db.db import Base
 
 
@@ -30,6 +32,13 @@ class Brand(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
+    links = relationship("BrandLink", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
+    tags = relationship("BrandTag", secondary="brand_tag_mapping", back_populates="brands", lazy="selectin")
+    media = relationship("BrandMedia", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
+    whitepass_review = relationship("BrandWhitePassReview", back_populates="brand", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    subscription_plans = relationship("BrandSubscriptionPlan", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
+
+
   
 
 
@@ -45,6 +54,8 @@ class BrandLink(Base):
     url = Column(Text, nullable=False)
     is_primary = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    brand = relationship("Brand", back_populates="links")
 
     
 
@@ -86,6 +97,8 @@ class BrandMedia(Base):
     sort_order = Column(Integer, nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
+    brand = relationship("Brand", back_populates="media")
+
   
 
 
@@ -96,6 +109,9 @@ class BrandTag(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False, unique=True, index=True)
+
+    brands = relationship("Brand", secondary="brand_tag_mapping", back_populates="tags")
+
 
     
 
@@ -154,4 +170,41 @@ class BrandAnalytics(Base):
     total_installs = Column(BigInteger, default=0)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
-   
+
+# ======================== Brand WhitePass Reviews ========================
+class BrandWhitePassReview(Base):
+    """Tracks WhitePass verification status and details for a brand."""
+    __tablename__ = "brand_whitepass_reviews"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    brand_id = Column(BigInteger, ForeignKey("brands.id"), nullable=False)
+    integration_status = Column(String(30), nullable=False, default="pending", 
+                                comment="pending / approved / rejected")
+    sdk_installed = Column(Boolean, default=False, nullable=False)
+    callback_verified = Column(Boolean, default=False, nullable=False)
+    domain_verified = Column(Boolean, default=False, nullable=False)
+    reviewed_by = Column(Uuid, ForeignKey("users.id"), nullable=True, comment="Admin reviewer")
+    review_notes = Column(Text, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    brand = relationship("Brand", back_populates="whitepass_review")
+
+
+# ======================== Brand Subscription Plans ========================
+class BrandSubscriptionPlan(Base):
+    """Stores subscription plans created by the brand."""
+    __tablename__ = "brand_subscription_plans"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    brand_id = Column(BigInteger, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    price = Column(Numeric(10, 2), nullable=False)
+    features = Column(ARRAY(Text), nullable=True)
+    billing_cycle = Column(String(30), nullable=False)
+    external_plan_id = Column(String(255), nullable=True)
+    status = Column(String(30), nullable=False, default="active")
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    brand = relationship("Brand", back_populates="subscription_plans")
