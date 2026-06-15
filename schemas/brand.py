@@ -88,7 +88,7 @@ class BrandBase(BaseModel):
     full_description: Optional[str] = None
     logo_url: Optional[str] = None
     banner_url: Optional[str] = None
-    brand_type: Optional[str] = Field(None, max_length=50)
+    brand_type: Optional[List[str]] = Field(None)
     company_name: Optional[str] = Field(None, max_length=255)
     is_wytpass_integration_accepted: bool = False
     is_payment_integration_accepted: bool = False
@@ -108,7 +108,7 @@ class BrandUpdate(BaseModel):
     full_description: Optional[str] = None
     logo_url: Optional[str] = None
     banner_url: Optional[str] = None
-    brand_type: Optional[str] = Field(None, max_length=50)
+    brand_type: Optional[List[str]] = Field(None)
     company_name: Optional[str] = Field(None, max_length=255)
     is_wytpass_integration_accepted: Optional[bool] = None
     is_payment_integration_accepted: Optional[bool] = None

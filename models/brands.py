@@ -19,7 +19,7 @@ class Brand(Base):
     full_description = Column(Text, nullable=True)
     logo_url = Column(Text, nullable=True)
     banner_url = Column(Text, nullable=True)
-    brand_type = Column(String(50), nullable=True, comment="app / website / saas / ai-tool")
+    brand_type = Column(ARRAY(String(50)), nullable=True, comment="Array of brand types (app / website / saas / ai-tool)")
     company_name = Column(String(255), nullable=True)
     is_wytpass_integration_accepted = Column(Boolean, default=False)
     is_payment_integration_accepted = Column(Boolean, default=False)
