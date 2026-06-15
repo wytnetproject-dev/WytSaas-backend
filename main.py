@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers.user import router as user_router
 from routers.auth import router as auth_router
 from routers.brand import router as brand_router
+from routers.subscription import router as subscription_router
 
 
 app = FastAPI(
@@ -38,5 +39,8 @@ app.include_router(user_router)
 
 # Include the brand router
 app.include_router(brand_router)
+
+# Include the subscription router
+app.include_router(subscription_router)
 
 

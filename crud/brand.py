@@ -1,8 +1,9 @@
 from typing import List, Optional
 from sqlalchemy import select, update, delete
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.brands import Brand
-from schemas.brand import BrandCreate, BrandUpdate
+from models.brands import Brand, BrandReview
+from schemas.brand import BrandCreate, BrandUpdate, BrandReviewCreate
 from uuid import UUID
 
 # Helper function to get or create BrandTag instances
@@ -74,12 +75,20 @@ async def create_brand(db: AsyncSession, brand: BrandCreate, creator_id: Optiona
 
 # Get a single brand by ID
 async def get_brand_by_id(db: AsyncSession, brand_id: int) -> Optional[Brand]:
-    result = await db.execute(select(Brand).where(Brand.id == brand_id))
+    result = await db.execute(
+        select(Brand)
+        .options(selectinload(Brand.reviews).selectinload(BrandReview.user))
+        .where(Brand.id == brand_id)
+    )
     return result.scalars().first()
 
 # Get a single brand by slug
 async def get_brand_by_slug(db: AsyncSession, slug: str) -> Optional[Brand]:
-    result = await db.execute(select(Brand).where(Brand.slug == slug))
+    result = await db.execute(
+        select(Brand)
+        .options(selectinload(Brand.reviews).selectinload(BrandReview.user))
+        .where(Brand.slug == slug)
+    )
     return result.scalars().first()
 
 # List multiple brands with limit and offset
@@ -144,3 +153,41 @@ async def delete_brand(db: AsyncSession, brand_id: int) -> bool:
     result = await db.execute(query)
     await db.commit()
     return result.rowcount > 0
+
+
+# Create a new brand review
+async def create_brand_review(
+    db: AsyncSession, 
+    brand_id: int, 
+    review_data: BrandReviewCreate, 
+    user_id: UUID
+) -> BrandReview:
+    db_review = BrandReview(
+        brand_id=brand_id,
+        user_id=user_id,
+        rating=review_data.rating,
+        review=review_data.review
+    )
+    db.add(db_review)
+    await db.commit()
+    await db.refresh(db_review)
+    
+    # Eagerly load user relationship to serialize user_email
+    result = await db.execute(
+        select(BrandReview)
+        .options(selectinload(BrandReview.user))
+        .where(BrandReview.id == db_review.id)
+    )
+    refreshed_review = result.scalars().first()
+    return refreshed_review if refreshed_review else db_review
+
+# List reviews for a specific brand
+async def list_brand_reviews(
+    db: AsyncSession, 
+    brand_id: int, 
+    skip: int = 0, 
+    limit: int = 100
+) -> List[BrandReview]:
+    query = select(BrandReview).options(selectinload(BrandReview.user)).where(BrandReview.brand_id == brand_id).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return list(result.scalars().all())

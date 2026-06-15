@@ -41,6 +41,23 @@ class BrandMediaResponse(BrandMediaBase):
     class Config:
         from_attributes = True
 
+class BrandReviewCreate(BaseModel):
+    rating: int = Field(..., ge=1, le=5, description="Rating from 1 to 5")
+    review: Optional[str] = None
+
+class BrandReviewResponse(BaseModel):
+    id: int
+    brand_id: int
+    user_id: UUID
+    rating: int
+    review: Optional[str] = None
+    created_at: datetime
+    user_email: Optional[str] = None
+    user_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class BrandWhitePassReviewBase(BaseModel):
     sdk_installed: bool = False
     callback_verified: bool = False
@@ -58,6 +75,11 @@ class BrandWhitePassReviewResponse(BrandWhitePassReviewBase):
 
     class Config:
         from_attributes = True
+
+class BrandWhitePassReviewAction(BaseModel):
+    integration_status: str = Field(..., max_length=30)  # approved or rejected
+    review_notes: Optional[str] = None
+
 
 class BrandBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=255)
@@ -109,5 +131,21 @@ class BrandResponse(BrandBase):
 
     class Config:
         from_attributes = True
+
+
+class BrandDetailResponse(BrandResponse):
+    reviews: List[BrandReviewResponse] = []
+
+
+class BrandWatchlistResponse(BaseModel):
+    id: int
+    user_id: UUID
+    brand_id: int
+    created_at: datetime
+    brand: Optional[BrandResponse] = None
+
+    class Config:
+        from_attributes = True
+
 
 

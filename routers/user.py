@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.db import get_db
-from schemas.user import UserCreate, UserUpdate, UserResponse
+from schemas.user import UserCreate, UserUpdate, UserResponse, UserProfileUpdate
 from schemas.response import APIResponse
 from crud.user import (
     create_user, get_user_by_id, get_user_by_username,
@@ -36,6 +36,57 @@ async def create_new_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
     return APIResponse[UserResponse](
         item=created_user,
         detail="User created successfully"
+    )
+
+# Get current logged-in user profile details
+@router.get("/me", response_model=APIResponse[UserResponse])
+async def get_current_user_profile(db: AsyncSession = Depends(get_db), current_user: UserJWT = Depends(get_user_token)):
+    db_user = await get_user_by_id(db, UUID(str(current_user.id)))
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return APIResponse[UserResponse](
+        item=db_user,
+        detail="User profile retrieved successfully"
+    )
+
+# Update current logged-in user profile details
+@router.patch("/me", response_model=APIResponse[UserResponse])
+async def update_current_user_profile(user_update: UserProfileUpdate, db: AsyncSession = Depends(get_db), current_user: UserJWT = Depends(get_user_token)):
+    user_id = UUID(str(current_user.id))
+    db_user = await get_user_by_id(db, user_id)
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Check if username is being changed and if it is already taken
+    if user_update.username:
+        existing_username = await get_user_by_username(db, user_update.username)
+        if existing_username and existing_username.id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already taken"
+            )
+            
+    # Check if email is being changed and if it is already taken
+    if user_update.email:
+        existing_email = await get_user_by_email(db, user_update.email)
+        if existing_email and existing_email.id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already taken"
+            )
+
+    # Convert UserProfileUpdate to UserUpdate schema for compatibility with update_user CRUD helper
+    update_data = UserUpdate(**user_update.model_dump(exclude_unset=True))
+    updated_user = await update_user(db, user_id, update_data)
+    return APIResponse[UserResponse](
+        item=updated_user,
+        detail="User profile updated successfully"
     )
 
 # Retrieve a specific user by ID

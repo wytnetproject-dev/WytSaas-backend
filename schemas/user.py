@@ -24,6 +24,13 @@ class UserUpdate(BaseModel):
     role: Optional[str] = Field(None, max_length=20)
     is_active: Optional[bool] = None
 
+# Schema for profile updates by the user themselves (restricted fields)
+class UserProfileUpdate(BaseModel):
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = Field(None, max_length=100)
+    password: Optional[str] = Field(None, min_length=8)
+
 # Schema for User data returned in API responses
 class UserResponse(UserBase):
     id: UUID

@@ -1,8 +1,10 @@
+from typing import Optional
 from sqlalchemy import Column, String, Text, Boolean, DateTime, BigInteger, Uuid, Integer, ForeignKey, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 from db.db import Base
+from model import User
 
 
 # ======================== Main Brands Table ========================
@@ -37,6 +39,7 @@ class Brand(Base):
     media = relationship("BrandMedia", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
     whitepass_review = relationship("BrandWhitePassReview", back_populates="brand", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     subscription_plans = relationship("BrandSubscriptionPlan", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
+    reviews = relationship("BrandReview", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
 
 
   
@@ -135,10 +138,25 @@ class BrandReview(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     brand_id = Column(BigInteger, ForeignKey("brands.id"), nullable=False)
-    user_id = Column(Uuid, nullable=False, comment="Review user")
+    user_id = Column(Uuid, ForeignKey("users.id"), nullable=False, comment="Review user")
     rating = Column(Integer, nullable=False, comment="Rating (1-5)")
     review = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    brand = relationship("Brand", back_populates="reviews")
+    user = relationship("User")
+
+    @property
+    def user_email(self) -> Optional[str]:
+        if "user" in self.__dict__ and self.user is not None:
+            return self.user.email
+        return None
+
+    @property
+    def user_name(self) -> Optional[str]:
+        if "user" in self.__dict__ and self.user is not None:
+            return self.user.full_name or self.user.username
+        return None
 
     
 
@@ -208,3 +226,18 @@ class BrandSubscriptionPlan(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     brand = relationship("Brand", back_populates="subscription_plans")
+
+
+# ======================== Brand Watchlist ========================
+class BrandWatchlist(Base):
+    """Watchlist model mapping user id and brand/app id."""
+    __tablename__ = "brand_watchlist"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id = Column(Uuid, ForeignKey("users.id"), nullable=False)
+    brand_id = Column(BigInteger, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    brand = relationship("Brand", lazy="selectin")
+    user = relationship("User")
+
