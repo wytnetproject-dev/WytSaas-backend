@@ -41,7 +41,12 @@ async def startup_event():
     from sqlalchemy import text
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Idempotently add the new sync columns to user_subscriptions if they don't exist
+        # Idempotently alter columns and add new sync columns
+        try:
+            await conn.execute(text("ALTER TABLE brands ALTER COLUMN current_stage TYPE VARCHAR(100);"))
+        except Exception as e:
+            print("Auto-alter current_stage column size failed:", e)
+            
         try:
             await conn.execute(text("ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS external_user_id VARCHAR(255);"))
             await conn.execute(text("ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS sync_status VARCHAR(30) DEFAULT 'pending';"))

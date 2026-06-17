@@ -81,6 +81,29 @@ class BrandWhitePassReviewAction(BaseModel):
     review_notes: Optional[str] = None
 
 
+class BrandWytPaymentReviewBase(BaseModel):
+    api_keys_configured: bool = False
+    webhook_verified: bool = False
+    test_payment_completed: bool = False
+
+class BrandWytPaymentReviewCreate(BrandWytPaymentReviewBase):
+    pass
+
+class BrandWytPaymentReviewResponse(BrandWytPaymentReviewBase):
+    id: int
+    brand_id: int
+    integration_status: str
+    review_notes: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class BrandWytPaymentReviewAction(BaseModel):
+    integration_status: str = Field(..., max_length=30)  # approved or rejected
+    review_notes: Optional[str] = None
+
+
 class BrandBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=255)
     slug: str = Field(..., min_length=2, max_length=255)
@@ -93,8 +116,8 @@ class BrandBase(BaseModel):
     is_wytpass_integration_accepted: bool = False
     is_payment_integration_accepted: bool = False
     is_featured: bool = False
-    status: str = Field("draft", max_length=30)
-    current_stage: str = Field("brand_submission", max_length=30)
+    status: str = Field("Pending", max_length=30)
+    current_stage: str = Field("Brand Submitted", max_length=100)
 
 class BrandCreate(BrandBase):
     links: Optional[List[BrandLinkCreate]] = []
@@ -114,7 +137,7 @@ class BrandUpdate(BaseModel):
     is_payment_integration_accepted: Optional[bool] = None
     is_featured: Optional[bool] = None
     status: Optional[str] = Field(None, max_length=30)
-    current_stage: Optional[str] = Field(None, max_length=30)
+    current_stage: Optional[str] = Field(None, max_length=100)
     links: Optional[List[BrandLinkCreate]] = None
     tags: Optional[List[str]] = None
     media: Optional[List[BrandMediaCreate]] = None
@@ -128,6 +151,7 @@ class BrandResponse(BrandBase):
     tags: List[BrandTagResponse] = []
     media: List[BrandMediaResponse] = []
     whitepass_review: Optional[BrandWhitePassReviewResponse] = None
+    wytpayment_review: Optional[BrandWytPaymentReviewResponse] = None
 
     class Config:
         from_attributes = True

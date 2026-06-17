@@ -5,6 +5,7 @@ from db.db import get_db
 from schemas.brand import (
     BrandCreate, BrandUpdate, BrandResponse, BrandWhitePassReviewCreate, 
     BrandWhitePassReviewResponse, BrandWhitePassReviewAction, 
+    BrandWytPaymentReviewCreate, BrandWytPaymentReviewResponse, BrandWytPaymentReviewAction,
     BrandDetailResponse, BrandReviewCreate, BrandReviewResponse,
     BrandWatchlistResponse
 )
@@ -226,7 +227,7 @@ async def submit_whitepass_review(
         db.add(db_review)
 
     brand.is_wytpass_integration_accepted = True
-    brand.current_stage = "whitepass_review"
+    brand.current_stage = "Waiting for WytPass Review"
 
     await db.commit()
     await db.refresh(db_review)
@@ -313,12 +314,11 @@ async def action_whitepass_review(
 
     if action_data.integration_status == "approved":
         brand.is_wytpass_integration_accepted = True
-        brand.current_stage = "payment_integration"
-        brand.status = "approved"
+        brand.current_stage = "WhitePass Integration Completed"
     else:  # rejected
         brand.is_wytpass_integration_accepted = False
-        brand.current_stage = "brand_submission"
-        brand.status = "rejected"
+        brand.current_stage = "Waiting for WytPass Review Rejected"
+        brand.status = "Rejected"
 
     await db.commit()
     await db.refresh(db_review)
@@ -326,6 +326,189 @@ async def action_whitepass_review(
     return APIResponse[BrandWhitePassReviewResponse](
         item=db_review,
         detail=f"SSO Review request {action_data.integration_status} successfully"
+    )
+
+
+# Submit WytPayment Integration Review
+@router.post("/{brand_id}/wytpayment-review", response_model=APIResponse[BrandWytPaymentReviewResponse])
+async def submit_wytpayment_review(
+    brand_id: int,
+    review_data: BrandWytPaymentReviewCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserJWT = Depends(get_user_token)
+):
+    brand = await get_brand_by_id(db, brand_id)
+    if not brand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Brand not found"
+        )
+    
+    from models.brands import BrandWytPaymentReview
+    from sqlalchemy import select
+    result = await db.execute(select(BrandWytPaymentReview).where(BrandWytPaymentReview.brand_id == brand_id))
+    db_review = result.scalars().first()
+
+    if db_review:
+        db_review.api_keys_configured = review_data.api_keys_configured
+        db_review.webhook_verified = review_data.webhook_verified
+        db_review.test_payment_completed = review_data.test_payment_completed
+        db_review.integration_status = "pending"
+    else:
+        db_review = BrandWytPaymentReview(
+            brand_id=brand_id,
+            api_keys_configured=review_data.api_keys_configured,
+            webhook_verified=review_data.webhook_verified,
+            test_payment_completed=review_data.test_payment_completed,
+            integration_status="pending"
+        )
+        db.add(db_review)
+
+    brand.is_payment_integration_accepted = True
+    brand.current_stage = "Waiting for WytPayment Review"
+
+    await db.commit()
+    await db.refresh(db_review)
+
+    return APIResponse[BrandWytPaymentReviewResponse](
+        item=db_review,
+        detail="WytPayment Review requested successfully"
+    )
+
+# Retrieve WytPayment Integration Review
+@router.get("/{brand_id}/wytpayment-review", response_model=APIResponse[BrandWytPaymentReviewResponse])
+async def get_wytpayment_review(
+    brand_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserJWT = Depends(get_user_token)
+):
+    brand = await get_brand_by_id(db, brand_id)
+    if not brand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Brand not found"
+        )
+    
+    from models.brands import BrandWytPaymentReview
+    from sqlalchemy import select
+    result = await db.execute(select(BrandWytPaymentReview).where(BrandWytPaymentReview.brand_id == brand_id))
+    db_review = result.scalars().first()
+
+    if not db_review:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No WytPayment review found for this brand"
+        )
+
+    return APIResponse[BrandWytPaymentReviewResponse](
+        item=db_review,
+        detail="WytPayment Review retrieved successfully"
+    )
+
+# Approve or Reject WytPayment Integration Review
+@router.post("/{brand_id}/wytpayment-review/action", response_model=APIResponse[BrandWytPaymentReviewResponse])
+async def action_wytpayment_review(
+    brand_id: int,
+    action_data: BrandWytPaymentReviewAction,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserJWT = Depends(get_user_token)
+):
+    if current_user.role != "wytsaas_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only wytsaas admins can perform this action"
+        )
+
+    brand = await get_brand_by_id(db, brand_id)
+    if not brand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Brand not found"
+        )
+    
+    from models.brands import BrandWytPaymentReview
+    from sqlalchemy import select
+    from datetime import datetime
+    
+    result = await db.execute(select(BrandWytPaymentReview).where(BrandWytPaymentReview.brand_id == brand_id))
+    db_review = result.scalars().first()
+
+    if not db_review:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No WytPayment review request exists for this brand"
+        )
+    
+    if action_data.integration_status not in ["approved", "rejected"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid status. Must be 'approved' or 'rejected'"
+        )
+
+    db_review.integration_status = action_data.integration_status
+    db_review.review_notes = action_data.review_notes
+    db_review.reviewed_by = current_user.id
+    db_review.reviewed_at = datetime.utcnow()
+
+    if action_data.integration_status == "approved":
+        brand.is_payment_integration_accepted = True
+        brand.current_stage = "WytPayment Integration Completed"
+    else:  # rejected
+        brand.is_payment_integration_accepted = False
+        brand.current_stage = "Waiting for WytPayment Review Rejected"
+        brand.status = "Rejected"
+
+    await db.commit()
+    await db.refresh(db_review)
+
+    return APIResponse[BrandWytPaymentReviewResponse](
+        item=db_review,
+        detail=f"WytPayment Review request {action_data.integration_status} successfully"
+    )
+
+
+# Approve or Reject Final Review
+@router.post("/{brand_id}/final-review/action", response_model=APIResponse[BrandResponse])
+async def action_final_review(
+    brand_id: int,
+    action_data: BrandWhitePassReviewAction,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserJWT = Depends(get_user_token)
+):
+    if current_user.role != "wytsaas_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only wytsaas admins can perform this action"
+        )
+
+    brand = await get_brand_by_id(db, brand_id)
+    if not brand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Brand not found"
+        )
+    
+    if action_data.integration_status not in ["approved", "rejected"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid status. Must be 'approved' or 'rejected'"
+        )
+
+    from datetime import datetime
+    if action_data.integration_status == "approved":
+        brand.current_stage = "Onboarding Completed"
+        brand.status = "Approved"
+        brand.approved_at = datetime.utcnow()
+    else:  # rejected
+        brand.current_stage = "Final Review Rejected"
+        brand.status = "Rejected"
+
+    await db.commit()
+    await db.refresh(brand)
+
+    return APIResponse[BrandResponse](
+        item=brand,
+        detail=f"Final review request {action_data.integration_status} successfully"
     )
 
 

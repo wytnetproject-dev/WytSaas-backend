@@ -24,10 +24,10 @@ class Brand(Base):
     is_wytpass_integration_accepted = Column(Boolean, default=False)
     is_payment_integration_accepted = Column(Boolean, default=False)
     is_featured = Column(Boolean, default=False)
-    status = Column(String(30), nullable=False, default="draft", 
-                   comment="draft / pending / under_review / approved / rejected / suspended")
-    current_stage = Column(String(30), nullable=False, default="brand_submission",
-                          comment="brand_submission / whitepass_review / payment_integration / final_review / completed")
+    status = Column(String(30), nullable=False, default="Pending", 
+                   comment="Pending / Approved / Rejected / suspended")
+    current_stage = Column(String(100), nullable=False, default="Brand Submitted",
+                          comment="Brand Submitted / Waiting for WytPass Review / WhitePass Integration Completed / Waiting for WytPayment Review / WytPayment Integration Completed / Onboarding Completed")
     submitted_at = Column(DateTime, nullable=True)
     approved_at = Column(DateTime, nullable=True)
     created_by = Column(Uuid, nullable=True, comment="Created user id")
@@ -38,6 +38,7 @@ class Brand(Base):
     tags = relationship("BrandTag", secondary="brand_tag_mapping", back_populates="brands", lazy="selectin")
     media = relationship("BrandMedia", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
     whitepass_review = relationship("BrandWhitePassReview", back_populates="brand", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    wytpayment_review = relationship("BrandWytPaymentReview", back_populates="brand", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     subscription_plans = relationship("BrandSubscriptionPlan", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
     reviews = relationship("BrandReview", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
 
@@ -207,6 +208,30 @@ class BrandWhitePassReview(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     brand = relationship("Brand", back_populates="whitepass_review")
+
+
+# ======================== Brand WytPayment Reviews ========================
+class BrandWytPaymentReview(Base):
+    """Tracks WytPayment verification status and details for a brand."""
+    __tablename__ = "brand_wytpayment_reviews"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    brand_id = Column(BigInteger, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    integration_status = Column(String(30), nullable=False, default="pending", 
+                                comment="pending / approved / rejected")
+    
+    # Checklist items for payment integration
+    api_keys_configured = Column(Boolean, default=False, nullable=False)
+    webhook_verified = Column(Boolean, default=False, nullable=False)
+    test_payment_completed = Column(Boolean, default=False, nullable=False)
+    
+    # Review tracking
+    reviewed_by = Column(Uuid, ForeignKey("users.id"), nullable=True, comment="Admin reviewer")
+    review_notes = Column(Text, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    brand = relationship("Brand", back_populates="wytpayment_review")
 
 
 # ======================== Brand Subscription Plans ========================
