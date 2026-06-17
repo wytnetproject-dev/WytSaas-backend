@@ -150,3 +150,48 @@ async def remove_user(user_id: UUID, db: AsyncSession = Depends(get_db)):
         )
     # 204 No Content doesn't require a return body
     return None
+
+
+# ======================== Mock Developer API Endpoints ========================
+import random
+
+mock_router = APIRouter(prefix="/user", tags=["Mock Developer API"])
+
+@mock_router.post("/create")
+async def mock_create_user(payload: dict):
+    """
+    Simulates external developer endpoint: POST /user/create
+    Expected Response: {"success": true, "external_user_id": "HC1001"}
+    """
+    print(">>> [MOCK DEVELOPER API] Received POST /user/create with payload:")
+    print(payload)
+    ext_id = f"HC{random.randint(1001, 9999)}"
+    return {
+        "success": True,
+        "external_user_id": ext_id
+    }
+
+@mock_router.post("/update")
+async def mock_update_user(payload: dict):
+    """
+    Simulates external developer endpoint: POST /user/update
+    Expected Response: {"success": true}
+    """
+    print(">>> [MOCK DEVELOPER API] Received POST /user/update with payload:")
+    print(payload)
+    return {
+        "success": True
+    }
+
+@mock_router.post("/cancel")
+async def mock_cancel_user(payload: dict):
+    """
+    Simulates external developer endpoint: POST /user/cancel
+    Expected Response: {"success": true}
+    """
+    print(">>> [MOCK DEVELOPER API] Received POST /user/cancel with payload:")
+    print(payload)
+    return {
+        "success": True
+    }
+

@@ -12,6 +12,10 @@ from .brands import (
     BrandWhitePassReview,
     BrandSubscriptionPlan,
     BrandWatchlist,
+    UserSubscription,
+    BrandIntegration,
+    SubscriptionSyncLog,
+    SubscriptionPayment,
 )
 
 __all__ = [
@@ -28,5 +32,9 @@ __all__ = [
     "BrandWhitePassReview",
     "BrandSubscriptionPlan",
     "BrandWatchlist",
+    "UserSubscription",
+    "BrandIntegration",
+    "SubscriptionSyncLog",
+    "SubscriptionPayment",
 ]
 

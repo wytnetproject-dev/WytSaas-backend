@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers.user import router as user_router
+from routers.user import router as user_router, mock_router as mock_user_router
 from routers.auth import router as auth_router
 from routers.brand import router as brand_router
 from routers.subscription import router as subscription_router
@@ -32,10 +32,29 @@ app.add_middleware(
 def read_root():
     return {"message": "Welcome to Wytnet API", "status": "operational"}
 
+
+# Auto-create tables on startup
+@app.on_event("startup")
+async def startup_event():
+    from db.db import engine, Base
+    import models
+    from sqlalchemy import text
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        # Idempotently add the new sync columns to user_subscriptions if they don't exist
+        try:
+            await conn.execute(text("ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS external_user_id VARCHAR(255);"))
+            await conn.execute(text("ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS sync_status VARCHAR(30) DEFAULT 'pending';"))
+            await conn.execute(text("ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMP;"))
+        except Exception as e:
+            print("Auto-alter user_subscriptions columns skipped or failed:", e)
+
+
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 
 # Include the user router
 app.include_router(user_router)
+app.include_router(mock_user_router)
 
 # Include the brand router
 app.include_router(brand_router)

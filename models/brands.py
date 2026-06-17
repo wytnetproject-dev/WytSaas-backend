@@ -241,3 +241,96 @@ class BrandWatchlist(Base):
     brand = relationship("Brand", lazy="selectin")
     user = relationship("User")
 
+
+# ======================== User Subscription ========================
+class UserSubscription(Base):
+    """UserSubscription model mapping user id, brand id and plan id."""
+    __tablename__ = "user_subscriptions"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id = Column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    brand_id = Column(BigInteger, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    plan_id = Column(BigInteger, ForeignKey("brand_subscription_plans.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(30), nullable=False, default="active") # active / cancelled
+    subscribed_at = Column(DateTime, server_default=func.now(), nullable=False)
+    
+    # New sync integration columns
+    external_user_id = Column(String(255), nullable=True)
+    sync_status = Column(String(30), default="pending", nullable=False)
+    last_synced_at = Column(DateTime, nullable=True)
+
+    brand = relationship("Brand", lazy="selectin")
+    user = relationship("User", lazy="selectin")
+    plan = relationship("BrandSubscriptionPlan", lazy="selectin")
+
+
+# ======================== Brand Integration Settings ========================
+class BrandIntegration(Base):
+    __tablename__ = "brand_integrations"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    brand_id = Column(
+        BigInteger,
+        ForeignKey("brands.id", ondelete="CASCADE"),
+        nullable=False
+    )
+    create_user_endpoint = Column(Text, nullable=True)
+    update_user_endpoint = Column(Text, nullable=True)
+    cancel_user_endpoint = Column(Text, nullable=True)
+    webhook_url = Column(Text, nullable=True)
+    api_key = Column(Text, nullable=True)
+    webhook_secret = Column(Text, nullable=True)
+    status = Column(String(30), default="active", nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    brand = relationship("Brand", lazy="selectin")
+
+
+# ======================== Subscription Sync Logs ========================
+class SubscriptionSyncLog(Base):
+    __tablename__ = "subscription_sync_logs"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    subscription_id = Column(
+        BigInteger,
+        ForeignKey("user_subscriptions.id", ondelete="CASCADE"),
+        nullable=True
+    )
+    brand_id = Column(
+        BigInteger,
+        ForeignKey("brands.id", ondelete="CASCADE"),
+        nullable=True
+    )
+    action = Column(String(50), nullable=False)
+    request_payload = Column(Text, nullable=True)
+    response_payload = Column(Text, nullable=True)
+    response_code = Column(Integer, nullable=True)
+    status = Column(String(30), nullable=False)
+    retry_count = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    subscription = relationship("UserSubscription", lazy="selectin")
+    brand = relationship("Brand", lazy="selectin")
+
+
+# ======================== Subscription Payments ========================
+class SubscriptionPayment(Base):
+    __tablename__ = "subscription_payments"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    subscription_id = Column(
+        BigInteger,
+        ForeignKey("user_subscriptions.id", ondelete="CASCADE"),
+        nullable=True
+    )
+    user_id = Column(Uuid, nullable=False)
+    amount = Column(Numeric(10, 2), nullable=False)
+    payment_gateway = Column(String(50), nullable=False)
+    gateway_payment_id = Column(String(255), nullable=False)
+    payment_status = Column(String(30), nullable=False)
+    paid_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    subscription = relationship("UserSubscription", lazy="selectin")
+
+

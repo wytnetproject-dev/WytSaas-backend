@@ -1,7 +1,8 @@
 from typing import List, Optional
+from uuid import UUID
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.brands import BrandSubscriptionPlan
+from models.brands import BrandSubscriptionPlan, UserSubscription
 from schemas.subscription import BrandSubscriptionPlanCreate, BrandSubscriptionPlanUpdate
 
 # Create a new subscription plan for a brand
@@ -54,3 +55,59 @@ async def delete_subscription_plan(db: AsyncSession, plan_id: int) -> bool:
     result = await db.execute(query)
     await db.commit()
     return result.rowcount > 0
+
+
+# Add a user subscription mapping
+async def add_user_subscription(db: AsyncSession, user_id: UUID, brand_id: int, plan_id: int) -> UserSubscription:
+    # Check if already exists for this brand/app
+    existing = await db.execute(
+        select(UserSubscription)
+        .where(UserSubscription.user_id == user_id, UserSubscription.brand_id == brand_id)
+    )
+    db_item = existing.scalars().first()
+    if db_item:
+        db_item.plan_id = plan_id
+        db_item.status = "active"
+        await db.commit()
+        await db.refresh(db_item)
+        return db_item
+        
+    db_item = UserSubscription(user_id=user_id, brand_id=brand_id, plan_id=plan_id, status="active")
+    db.add(db_item)
+    await db.commit()
+    await db.refresh(db_item)
+    return db_item
+
+
+# Remove a user subscription mapping
+async def remove_user_subscription(db: AsyncSession, user_id: UUID, brand_id: int) -> bool:
+    query = delete(UserSubscription).where(
+        UserSubscription.user_id == user_id, 
+        UserSubscription.brand_id == brand_id
+    )
+    result = await db.execute(query)
+    await db.commit()
+    return result.rowcount > 0
+
+
+# Get all user subscriptions
+async def get_user_subscriptions(db: AsyncSession, user_id: UUID) -> List[UserSubscription]:
+    query = (
+        select(UserSubscription)
+        .where(UserSubscription.user_id == user_id)
+        .order_by(UserSubscription.subscribed_at.desc())
+    )
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+# Get all subscribers for a specific brand/app
+async def get_brand_subscribers(db: AsyncSession, brand_id: int) -> List[UserSubscription]:
+    query = (
+        select(UserSubscription)
+        .where(UserSubscription.brand_id == brand_id)
+        .order_by(UserSubscription.subscribed_at.desc())
+    )
+    result = await db.execute(query)
+    return list(result.scalars().all())
+

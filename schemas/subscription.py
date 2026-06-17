@@ -30,3 +30,43 @@ class BrandSubscriptionPlanResponse(BrandSubscriptionPlanBase):
 
     class Config:
         from_attributes = True
+
+
+class UserSubscriptionCreate(BaseModel):
+    plan_id: int
+
+
+class UserSubscriptionResponse(BaseModel):
+    id: int
+    user_id: str
+    brand_id: int
+    plan_id: int
+    status: str
+    subscribed_at: datetime
+    external_user_id: Optional[str] = None
+    sync_status: Optional[str] = "pending"
+    last_synced_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PaymentOrderCreate(BaseModel):
+    plan_id: int
+
+
+class PaymentOrderResponse(BaseModel):
+    order_id: str
+    amount: int
+    currency: str
+    key_id: str
+    plan_id: int
+    is_mock: bool
+
+
+class PaymentVerificationInput(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+    plan_id: int
+
