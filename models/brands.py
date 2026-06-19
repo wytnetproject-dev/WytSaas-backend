@@ -359,3 +359,24 @@ class SubscriptionPayment(Base):
     subscription = relationship("UserSubscription", lazy="selectin")
 
 
+# ======================== Developer Bank Account Details ========================
+class DeveloperBankAccount(Base):
+    """Stores bank account details for a developer account (linked to a User)."""
+    __tablename__ = "developer_bank_accounts"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    user_id = Column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, comment="Developer user id")
+    bank_name = Column(String(255), nullable=False)
+    account_holder_name = Column(String(255), nullable=False)
+    account_number = Column(String(100), nullable=False)
+    routing_number = Column(String(100), nullable=True, comment="Routing number or SWIFT/IFSC code")
+    swift_code = Column(String(50), nullable=True)
+    ifsc_code = Column(String(50), nullable=True)
+    account_type = Column(String(50), nullable=True, default="Checking", comment="Checking / Savings")
+    bank_address = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    user = relationship("User", lazy="selectin")
+
+

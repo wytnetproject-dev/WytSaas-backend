@@ -149,6 +149,63 @@ async def update_brand(db: AsyncSession, brand_id: int, brand_update: BrandUpdat
 
 # Delete a brand
 async def delete_brand(db: AsyncSession, brand_id: int) -> bool:
+    from models.brands import (
+        BrandLink, BrandCategoryMapping, BrandMedia, BrandTagMapping,
+        BrandReview, BrandPromotion, BrandAnalytics, BrandWhitePassReview,
+        BrandWytPaymentReview, BrandSubscriptionPlan, BrandWatchlist,
+        UserSubscription, BrandIntegration, SubscriptionSyncLog, SubscriptionPayment
+    )
+
+    # 1. SubscriptionPayment references user_subscriptions.id
+    sub_ids_query = select(UserSubscription.id).where(UserSubscription.brand_id == brand_id)
+    sub_ids_result = await db.execute(sub_ids_query)
+    sub_ids = list(sub_ids_result.scalars().all())
+    if sub_ids:
+        await db.execute(delete(SubscriptionPayment).where(SubscriptionPayment.subscription_id.in_(sub_ids)))
+
+    # 2. SubscriptionSyncLog (references brands.id and user_subscriptions.id)
+    await db.execute(delete(SubscriptionSyncLog).where(SubscriptionSyncLog.brand_id == brand_id))
+
+    # 3. UserSubscription (references brands.id)
+    await db.execute(delete(UserSubscription).where(UserSubscription.brand_id == brand_id))
+
+    # 4. BrandIntegration (references brands.id)
+    await db.execute(delete(BrandIntegration).where(BrandIntegration.brand_id == brand_id))
+
+    # 5. BrandWatchlist (references brands.id)
+    await db.execute(delete(BrandWatchlist).where(BrandWatchlist.brand_id == brand_id))
+
+    # 6. BrandSubscriptionPlan (references brands.id)
+    await db.execute(delete(BrandSubscriptionPlan).where(BrandSubscriptionPlan.brand_id == brand_id))
+
+    # 7. BrandWytPaymentReview (references brands.id)
+    await db.execute(delete(BrandWytPaymentReview).where(BrandWytPaymentReview.brand_id == brand_id))
+
+    # 8. BrandWhitePassReview (references brands.id)
+    await db.execute(delete(BrandWhitePassReview).where(BrandWhitePassReview.brand_id == brand_id))
+
+    # 9. BrandAnalytics (references brands.id)
+    await db.execute(delete(BrandAnalytics).where(BrandAnalytics.brand_id == brand_id))
+
+    # 10. BrandPromotion (references brands.id)
+    await db.execute(delete(BrandPromotion).where(BrandPromotion.brand_id == brand_id))
+
+    # 11. BrandReview (references brands.id)
+    await db.execute(delete(BrandReview).where(BrandReview.brand_id == brand_id))
+
+    # 12. BrandTagMapping (references brands.id)
+    await db.execute(delete(BrandTagMapping).where(BrandTagMapping.brand_id == brand_id))
+
+    # 13. BrandMedia (references brands.id)
+    await db.execute(delete(BrandMedia).where(BrandMedia.brand_id == brand_id))
+
+    # 14. BrandCategoryMapping (references brands.id)
+    await db.execute(delete(BrandCategoryMapping).where(BrandCategoryMapping.brand_id == brand_id))
+
+    # 15. BrandLink (references brands.id)
+    await db.execute(delete(BrandLink).where(BrandLink.brand_id == brand_id))
+
+    # 16. Finally delete the Brand itself
     query = delete(Brand).where(Brand.id == brand_id)
     result = await db.execute(query)
     await db.commit()

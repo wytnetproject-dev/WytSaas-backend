@@ -17,6 +17,7 @@ from .brands import (
     BrandIntegration,
     SubscriptionSyncLog,
     SubscriptionPayment,
+    DeveloperBankAccount,
 )
 
 __all__ = [
@@ -38,5 +39,6 @@ __all__ = [
     "BrandIntegration",
     "SubscriptionSyncLog",
     "SubscriptionPayment",
+    "DeveloperBankAccount",
 ]
 
