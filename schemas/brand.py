@@ -172,4 +172,38 @@ class BrandWatchlistResponse(BaseModel):
         from_attributes = True
 
 
+# ======================== Marketplace Banner Schemas ========================
+class MarketplaceBannerBase(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    subtitle: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    badge: Optional[str] = Field(None, max_length=100)
+    bg_image: Optional[str] = Field("from-blue-600 to-indigo-900")
+    icon: Optional[str] = None
+    is_active: bool = True
+    sort_order: int = 0
+
+class MarketplaceBannerCreate(MarketplaceBannerBase):
+    pass
+
+class MarketplaceBannerUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=255)
+    subtitle: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    badge: Optional[str] = Field(None, max_length=100)
+    bg_image: Optional[str] = Field(None)
+    icon: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+class MarketplaceBannerResponse(MarketplaceBannerBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+
 

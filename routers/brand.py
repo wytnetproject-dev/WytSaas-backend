@@ -7,13 +7,17 @@ from schemas.brand import (
     BrandWhitePassReviewResponse, BrandWhitePassReviewAction, 
     BrandWytPaymentReviewCreate, BrandWytPaymentReviewResponse, BrandWytPaymentReviewAction,
     BrandDetailResponse, BrandReviewCreate, BrandReviewResponse,
-    BrandWatchlistResponse
+    BrandWatchlistResponse, MarketplaceBannerCreate, MarketplaceBannerUpdate,
+    MarketplaceBannerResponse
 )
 from schemas.response import APIResponse
 from crud.brand import (
     create_brand, get_brand_by_id, get_brand_by_slug,
     list_brands, update_brand, delete_brand,
-    create_brand_review, list_brand_reviews
+    create_brand_review, list_brand_reviews,
+    create_marketplace_banner, list_marketplace_banners,
+    get_marketplace_banner_by_id, update_marketplace_banner,
+    delete_marketplace_banner
 )
 from utils.auth import UserJWT, get_user_token
 
@@ -557,5 +561,99 @@ async def get_brand_reviews(
         detail="Brand reviews retrieved successfully",
         itemCount=len(reviews)
     )
+
+
+# ======================== Marketplace Banner Endpoints ========================
+
+# Get all active banners (public)
+@router.get("/banners", response_model=APIResponse[MarketplaceBannerResponse])
+async def get_active_banners(db: AsyncSession = Depends(get_db)):
+    banners = await list_marketplace_banners(db, only_active=True)
+    return APIResponse[MarketplaceBannerResponse](
+        items=banners,
+        detail="Active marketplace banners retrieved successfully",
+        itemCount=len(banners)
+    )
+
+# Get all banners (admin-only)
+@router.get("/banners/all", response_model=APIResponse[MarketplaceBannerResponse])
+async def get_all_banners_admin(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserJWT = Depends(get_user_token)
+):
+    if current_user.role != "wytsaas_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only wytsaas admins can perform this action"
+        )
+    banners = await list_marketplace_banners(db, only_active=False)
+    return APIResponse[MarketplaceBannerResponse](
+        items=banners,
+        detail="All marketplace banners retrieved successfully",
+        itemCount=len(banners)
+    )
+
+# Create a new marketplace banner (admin-only)
+@router.post("/banners", response_model=APIResponse[MarketplaceBannerResponse], status_code=status.HTTP_201_CREATED)
+async def create_banner_admin(
+    banner: MarketplaceBannerCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserJWT = Depends(get_user_token)
+):
+    if current_user.role != "wytsaas_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only wytsaas admins can perform this action"
+        )
+    created_banner = await create_marketplace_banner(db, banner)
+    return APIResponse[MarketplaceBannerResponse](
+        item=created_banner,
+        detail="Marketplace banner created successfully"
+    )
+
+# Update a marketplace banner (admin-only)
+@router.patch("/banners/{banner_id}", response_model=APIResponse[MarketplaceBannerResponse])
+async def update_banner_admin(
+    banner_id: int,
+    banner_update: MarketplaceBannerUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserJWT = Depends(get_user_token)
+):
+    if current_user.role != "wytsaas_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only wytsaas admins can perform this action"
+        )
+    updated_banner = await update_marketplace_banner(db, banner_id, banner_update)
+    if not updated_banner:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Marketplace banner not found"
+        )
+    return APIResponse[MarketplaceBannerResponse](
+        item=updated_banner,
+        detail="Marketplace banner updated successfully"
+    )
+
+# Delete a marketplace banner (admin-only)
+@router.delete("/banners/{banner_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_banner_admin(
+    banner_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserJWT = Depends(get_user_token)
+):
+    if current_user.role != "wytsaas_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only wytsaas admins can perform this action"
+        )
+    success = await delete_marketplace_banner(db, banner_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Marketplace banner not found"
+        )
+    return None
+
 
 

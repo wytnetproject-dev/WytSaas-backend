@@ -2,8 +2,11 @@ from typing import List, Optional
 from sqlalchemy import select, update, delete
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.brands import Brand, BrandReview
-from schemas.brand import BrandCreate, BrandUpdate, BrandReviewCreate
+from models.brands import Brand, BrandReview, MarketplaceBanner
+from schemas.brand import (
+    BrandCreate, BrandUpdate, BrandReviewCreate,
+    MarketplaceBannerCreate, MarketplaceBannerUpdate
+)
 from uuid import UUID
 
 # Helper function to get or create BrandTag instances
@@ -248,3 +251,50 @@ async def list_brand_reviews(
     query = select(BrandReview).options(selectinload(BrandReview.user)).where(BrandReview.brand_id == brand_id).offset(skip).limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+# ======================== Marketplace Banner CRUD ========================
+async def create_marketplace_banner(db: AsyncSession, banner: MarketplaceBannerCreate) -> MarketplaceBanner:
+    db_banner = MarketplaceBanner(
+        title=banner.title,
+        subtitle=banner.subtitle,
+        description=banner.description,
+        badge=banner.badge,
+        bg_image=banner.bg_image,
+        icon=banner.icon,
+        is_active=banner.is_active,
+        sort_order=banner.sort_order
+    )
+    db.add(db_banner)
+    await db.commit()
+    await db.refresh(db_banner)
+    return db_banner
+
+async def list_marketplace_banners(db: AsyncSession, only_active: bool = True) -> List[MarketplaceBanner]:
+    query = select(MarketplaceBanner)
+    if only_active:
+        query = query.where(MarketplaceBanner.is_active == True)
+    query = query.order_by(MarketplaceBanner.sort_order.asc(), MarketplaceBanner.id.asc())
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+async def get_marketplace_banner_by_id(db: AsyncSession, banner_id: int) -> Optional[MarketplaceBanner]:
+    result = await db.execute(select(MarketplaceBanner).where(MarketplaceBanner.id == banner_id))
+    return result.scalars().first()
+
+async def update_marketplace_banner(db: AsyncSession, banner_id: int, banner_update: MarketplaceBannerUpdate) -> Optional[MarketplaceBanner]:
+    db_banner = await get_marketplace_banner_by_id(db, banner_id)
+    if not db_banner:
+        return None
+    update_data = banner_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_banner, key, value)
+    await db.commit()
+    await db.refresh(db_banner)
+    return db_banner
+
+async def delete_marketplace_banner(db: AsyncSession, banner_id: int) -> bool:
+    result = await db.execute(delete(MarketplaceBanner).where(MarketplaceBanner.id == banner_id))
+    await db.commit()
+    return result.rowcount > 0
+

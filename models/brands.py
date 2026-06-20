@@ -380,3 +380,22 @@ class DeveloperBankAccount(Base):
     user = relationship("User", lazy="selectin")
 
 
+# ======================== Marketplace Banners ========================
+class MarketplaceBanner(Base):
+    """Stores banners displayed on the marketplace carousel."""
+    __tablename__ = "marketplace_banners"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    title = Column(String(255), nullable=False)
+    subtitle = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    badge = Column(String(100), nullable=True)
+    bg_image = Column(Text, nullable=True)
+    icon = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+
