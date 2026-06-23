@@ -5,6 +5,7 @@ from routers.auth import router as auth_router
 from routers.brand import router as brand_router
 from routers.subscription import router as subscription_router
 from routers.developer_bank_account import router as developer_bank_router
+from routers.enquiry import router as enquiry_router
 
 
 app = FastAPI(
@@ -70,5 +71,8 @@ app.include_router(subscription_router)
 
 # Include the developer bank account router
 app.include_router(developer_bank_router)
+
+# Include the enquiry router
+app.include_router(enquiry_router)
 
 
