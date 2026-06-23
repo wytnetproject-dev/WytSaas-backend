@@ -20,6 +20,7 @@ from .brands import (
     DeveloperBankAccount,
     MarketplaceBanner,
 )
+from .enquiry import Enquiry
 
 __all__ = [
     "Brand",
@@ -42,5 +43,7 @@ __all__ = [
     "SubscriptionPayment",
     "DeveloperBankAccount",
     "MarketplaceBanner",
+    "Enquiry",
 ]
+
 
