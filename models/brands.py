@@ -38,6 +38,7 @@ class Brand(Base):
     tags = relationship("BrandTag", secondary="brand_tag_mapping", back_populates="brands", lazy="selectin")
     media = relationship("BrandMedia", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
     whitepass_review = relationship("BrandWhitePassReview", back_populates="brand", uselist=False, cascade="all, delete-orphan", lazy="selectin")
+    whitepass_review_logs = relationship("BrandWhitePassReviewLog", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
     wytpayment_review = relationship("BrandWytPaymentReview", back_populates="brand", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     subscription_plans = relationship("BrandSubscriptionPlan", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
     reviews = relationship("BrandReview", back_populates="brand", cascade="all, delete-orphan", lazy="selectin")
@@ -208,6 +209,25 @@ class BrandWhitePassReview(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     brand = relationship("Brand", back_populates="whitepass_review")
+
+
+# ======================== Brand WhitePass Review Logs ========================
+class BrandWhitePassReviewLog(Base):
+    """Logs the history of WhitePass verification status and details for a brand."""
+    __tablename__ = "brand_whitepass_review_logs"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    brand_id = Column(BigInteger, ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
+    integration_status = Column(String(30), nullable=False, comment="pending / approved / rejected")
+    sdk_installed = Column(Boolean, default=False, nullable=False)
+    callback_verified = Column(Boolean, default=False, nullable=False)
+    domain_verified = Column(Boolean, default=False, nullable=False)
+    reviewed_by = Column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, comment="Admin reviewer")
+    review_notes = Column(Text, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    brand = relationship("Brand", back_populates="whitepass_review_logs")
 
 
 # ======================== Brand WytPayment Reviews ========================
