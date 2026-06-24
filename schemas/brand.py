@@ -76,6 +76,21 @@ class BrandWhitePassReviewResponse(BrandWhitePassReviewBase):
     class Config:
         from_attributes = True
 
+class BrandWhitePassReviewLogResponse(BaseModel):
+    id: int
+    brand_id: int
+    integration_status: str
+    sdk_installed: bool
+    callback_verified: bool
+    domain_verified: bool
+    reviewed_by: Optional[UUID] = None
+    review_notes: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class BrandWhitePassReviewAction(BaseModel):
     integration_status: str = Field(..., max_length=30)  # approved or rejected
     review_notes: Optional[str] = None

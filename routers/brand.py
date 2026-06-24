@@ -1,10 +1,11 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.db import get_db
 from schemas.brand import (
     BrandCreate, BrandUpdate, BrandResponse, BrandWhitePassReviewCreate, 
-    BrandWhitePassReviewResponse, BrandWhitePassReviewAction, 
+    BrandWhitePassReviewResponse, BrandWhitePassReviewAction, BrandWhitePassReviewLogResponse, 
     BrandWytPaymentReviewCreate, BrandWytPaymentReviewResponse, BrandWytPaymentReviewAction,
     BrandDetailResponse, BrandReviewCreate, BrandReviewResponse,
     BrandWatchlistResponse, MarketplaceBannerCreate, MarketplaceBannerUpdate,
@@ -47,11 +48,27 @@ async def create_new_brand(
 # List all brands
 @router.get("/", response_model=APIResponse[BrandResponse])
 async def list_all_brands(
+    request: Request,
     skip: int = 0, 
     limit: int = 100, 
     db: AsyncSession = Depends(get_db)
 ):
-    brands = await list_brands(db, skip=skip, limit=limit)
+    # Extract Authorization header optionally to check if the caller is a developer
+    auth_header = request.headers.get("Authorization")
+    creator_id = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        from utils.auth import check_token
+        payload = check_token(token)
+        if payload and payload.get("role") == "developer":
+            creator_val = payload.get("id")
+            if creator_val:
+                try:
+                    creator_id = UUID(creator_val)
+                except ValueError:
+                    pass
+
+    brands = await list_brands(db, skip=skip, limit=limit, creator_id=creator_id)
     return APIResponse[BrandResponse](
         items=brands,
         detail="Brands retrieved successfully",
@@ -233,6 +250,19 @@ async def submit_whitepass_review(
     brand.is_wytpass_integration_accepted = True
     brand.current_stage = "Waiting for WytPass Review"
 
+    from models.brands import BrandWhitePassReviewLog
+    db_log = BrandWhitePassReviewLog(
+        brand_id=brand_id,
+        integration_status="pending",
+        sdk_installed=review_data.sdk_installed,
+        callback_verified=review_data.callback_verified,
+        domain_verified=review_data.domain_verified,
+        reviewed_by=None,
+        review_notes=None,
+        reviewed_at=None
+    )
+    db.add(db_log)
+
     await db.commit()
     await db.refresh(db_review)
 
@@ -324,6 +354,19 @@ async def action_whitepass_review(
         brand.current_stage = "Waiting for WytPass Review Rejected"
         brand.status = "Rejected"
 
+    from models.brands import BrandWhitePassReviewLog
+    db_log = BrandWhitePassReviewLog(
+        brand_id=brand_id,
+        integration_status=action_data.integration_status,
+        sdk_installed=db_review.sdk_installed,
+        callback_verified=db_review.callback_verified,
+        domain_verified=db_review.domain_verified,
+        reviewed_by=current_user.id,
+        review_notes=action_data.review_notes,
+        reviewed_at=db_review.reviewed_at
+    )
+    db.add(db_log)
+
     await db.commit()
     await db.refresh(db_review)
 
@@ -332,6 +375,35 @@ async def action_whitepass_review(
         detail=f"SSO Review request {action_data.integration_status} successfully"
     )
 
+
+# Get Brand WhitePass Review Logs
+@router.get("/{brand_id}/whitepass-review/logs", response_model=APIResponse[BrandWhitePassReviewLogResponse])
+async def get_whitepass_review_logs(
+    brand_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserJWT = Depends(get_user_token)
+):
+    brand = await get_brand_by_id(db, brand_id)
+    if not brand:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Brand not found"
+        )
+    
+    from models.brands import BrandWhitePassReviewLog
+    from sqlalchemy import select
+    result = await db.execute(
+        select(BrandWhitePassReviewLog)
+        .where(BrandWhitePassReviewLog.brand_id == brand_id)
+        .order_by(BrandWhitePassReviewLog.created_at.desc())
+    )
+    logs = result.scalars().all()
+    
+    return APIResponse[BrandWhitePassReviewLogResponse](
+        items=logs,
+        detail="WhitePass review logs retrieved successfully",
+        itemCount=len(logs)
+    )
 
 # Submit WytPayment Integration Review
 @router.post("/{brand_id}/wytpayment-review", response_model=APIResponse[BrandWytPaymentReviewResponse])

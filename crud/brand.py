@@ -95,8 +95,17 @@ async def get_brand_by_slug(db: AsyncSession, slug: str) -> Optional[Brand]:
     return result.scalars().first()
 
 # List multiple brands with limit and offset
-async def list_brands(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Brand]:
-    result = await db.execute(select(Brand).offset(skip).limit(limit))
+async def list_brands(
+    db: AsyncSession, 
+    skip: int = 0, 
+    limit: int = 100,
+    creator_id: Optional[UUID] = None
+) -> List[Brand]:
+    query = select(Brand)
+    if creator_id:
+        query = query.where(Brand.created_by == creator_id)
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 # Update a brand
